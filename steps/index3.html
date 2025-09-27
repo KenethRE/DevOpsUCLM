@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Realtime Color Blocks</title>
+  <title>Realtime Sparkling Water Bottles</title>
   <style>
     :root { --bg: #0f1222; --fg: #e8ecf1; --muted: #9aa4b2; --card: #171a2e; --accent: #6ea8fe; }
     * { box-sizing: border-box; }
@@ -12,23 +12,54 @@
     .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
     .title { display: flex; align-items: center; gap: 10px; font-weight: 700; }
     .title .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
-    .toolbar { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: center; margin-top: 10px; }
+    .toolbar { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; margin-top: 10px; }
     .card { background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px; }
-    input[type="text"], input[type="number"], input[type="color"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0f1426; color: var(--fg); }
+    input[type="text"], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0f1426; color: var(--fg); }
     button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #141a33; color: var(--fg); cursor: pointer; transition: 120ms transform ease; }
     button.primary { background: var(--accent); color: #0b1020; border-color: transparent; font-weight: 700; }
     button:hover { transform: translateY(-1px); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
-    .block { position: relative; border-radius: 14px; min-height: 120px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
-    .block .meta { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; background: linear-gradient(0deg, rgba(0,0,0,0.45), rgba(0,0,0,0)); color: #f5f7fb; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
+
+    .bottle {
+      position: relative;
+      width: 80px;
+      height: 180px;
+      margin: 0 auto;
+      border-radius: 20px 20px 10px 10px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    .cap {
+      position: absolute;
+      top: -20px;
+      width: 40px;
+      height: 20px;
+      background: #e8ecf1;
+      border-radius: 6px 6px 0 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .label {
+      position: absolute;
+      bottom: 10px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      max-width: 70%;
+    }
+
     .muted { color: var(--muted); font-size: 13px; }
     .row { display: flex; gap: 10px; align-items: center; }
-    .sp { flex: 1; }
     .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
     .footer { text-align: center; color: var(--muted); padding: 18px 0 28px; }
     .danger { background: #ff6b6b; color: #111; border-color: transparent; }
-    .notice { background: #0f1426; border-radius: 12px; padding: 10px 12px; border: 1px dashed rgba(255,255,255,0.12); }
-    .switch { display:inline-flex; align-items:center; gap:8px; }
   </style>
 </head>
 <body>
@@ -36,44 +67,36 @@
     <div class="container">
       <div class="title">
         <div class="dot"></div>
-        <div>Realtime Color Blocks</div>
+        <div>Realtime Sparkling Water Bottles</div>
         <div class="muted" id="status">connecting…</div>
       </div>
 
       <div class="toolbar">
         <div class="card row">
-          <span class="pill">Color</span>
-          <input type="color" id="colorPicker" value="#6ea8fe" title="Pick a color"/>
-          <input type="text" id="labelInput" placeholder="Optional label (e.g., Maria, #FFAA00)" />
-        </div>
-        <div class="card row">
-          <span class="pill">Size</span>
-          <input type="number" id="wInput" value="1" min="1" max="3" title="Width units"/>
-          <input type="number" id="hInput" value="1" min="1" max="3" title="Height units"/>
-        </div>
-        <div class="card row">
-          <span class="pill">Layout</span>
-          <label class="switch"><input type="checkbox" id="denseToggle"/> <span class="muted">Dense grid</span></label>
+          <span class="pill">Flavor</span>
+          <select id="flavorSelect">
+            <option value="lemon">🍋 Lemon</option>
+            <option value="mint">🌿 Mint</option>
+            <option value="berry">🫐 Berry</option>
+            <option value="orange">🍊 Orange</option>
+            <option value="plain">💧 Plain</option>
+          </select>
+          <input type="text" id="labelInput" placeholder="Custom label (optional)" />
         </div>
         <div class="row">
-          <button class="primary" id="addBtn">Add block</button>
+          <button class="primary" id="addBtn">Add bottle</button>
+          <button id="nukeBtn" class="danger">Delete all</button>
         </div>
-      </div>
-
-      <div class="notice" style="margin-top:12px">
-        <strong>How it works:</strong> everyone who opens this page adds blocks to the same shared board in real time. You don't need an account; we use anonymous sign‑in. <span class="muted">Your Firebase config is already embedded below.</span>
       </div>
     </div>
   </header>
 
   <main class="container" style="padding-top:14px">
     <div id="board" class="grid"></div>
-    <div class="footer">Built for collaborative fun ✨ • <span class="muted">Tip: click a block to duplicate it.</span></div>
+    <div class="footer">Built for collaborative fun ✨ • <span class="muted">Tip: click a bottle to duplicate it.</span></div>
   </main>
 
   <script type="module">
-    // --- Your permanent Firebase config ---
-    // Firebase config is injected at build time from GitHub secrets
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -82,10 +105,19 @@
       messagingSenderId: "YOUR_SENDER_ID",
       appId: "YOUR_APP_ID"
     };
-    
-    // --- Simple local fallback store (so page works without Firebase) ---
+
+    const room = new URLSearchParams(location.search).get('room') || 'global';
+
+    const flavorColors = {
+      lemon: 'linear-gradient(to top, #f9e65c, #fff9c4)',
+      mint: 'linear-gradient(to top, #88f7c1, #d9fff0)',
+      berry: 'linear-gradient(to top, #d77bff, #f3d9ff)',
+      orange: 'linear-gradient(to top, #ffa94d, #ffe3ba)',
+      plain: 'linear-gradient(to top, #58c4ff, #b8f0ff)'
+    };
+
     const LocalStore = (() => {
-      const KEY = 'realtime-color-blocks';
+      const KEY = `realtime-bottles-${room}`;
       const listeners = new Set();
       const getAll = () => JSON.parse(localStorage.getItem(KEY) || '[]');
       const setAll = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
@@ -97,70 +129,41 @@
       return { add, removeAll, onChange };
     })();
 
-    // --- UI elements ---
     const board = document.getElementById('board');
     const addBtn = document.getElementById('addBtn');
-    const colorPicker = document.getElementById('colorPicker');
     const labelInput = document.getElementById('labelInput');
-    const wInput = document.getElementById('wInput');
-    const hInput = document.getElementById('hInput');
-    const denseToggle = document.getElementById('denseToggle');
+    const flavorSelect = document.getElementById('flavorSelect');
     const status = document.getElementById('status');
 
-    // Grid density toggle
-    const updateGridDensity = () => {
-      const dense = denseToggle.checked;
-      board.style.gap = dense ? '8px' : '14px';
-      board.style.gridTemplateColumns = dense
-        ? 'repeat(auto-fill, minmax(110px, 1fr))'
-        : 'repeat(auto-fill, minmax(140px, 1fr))';
-    };
-    denseToggle.addEventListener('change', updateGridDensity);
-    updateGridDensity();
-
-    // Render function
     const render = (docs) => {
       board.innerHTML = '';
-      docs
-        .sort((a,b) => a.createdAt - b.createdAt)
+      docs.sort((a,b) => (a.createdAt||0) - (b.createdAt||0))
         .forEach(doc => {
           const d = document.createElement('div');
-          d.className = 'block';
-          d.style.background = doc.color;
-          d.style.gridColumn = `span ${Math.max(1, Math.min(3, doc.w || 1))}`;
-          d.style.gridRow = `span ${Math.max(1, Math.min(3, doc.h || 1))}`;
-          d.title = `${doc.label || ''}`;
-          d.innerHTML = `<div class="meta"><span>${doc.label ? escapeHtml(doc.label) : '&nbsp;'}</span><span class="pill">${doc.color}</span></div>`;
-          d.addEventListener('click', () => addBlock(doc.color, doc.label, doc.w, doc.h));
+          d.className = 'bottle';
+          d.style.background = flavorColors[doc.flavor] || flavorColors.plain;
+          d.innerHTML = `<div class="cap"></div><div class="label">${doc.label ? escapeHtml(doc.label) : doc.flavor}</div>`;
+          d.addEventListener('click', () => addBottle(doc.flavor, doc.label));
           board.appendChild(d);
         });
     };
 
     const escapeHtml = (s='') => s.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 
-    // Store abstraction that switches between Local and Firebase
-    let store = {
-      add: LocalStore.add,
-      removeAll: LocalStore.removeAll,
-      onChange: LocalStore.onChange,
-      type: 'local',
-      stop: () => {}
-    };
+    let store = { add: LocalStore.add, removeAll: LocalStore.removeAll, onChange: LocalStore.onChange, type:'local', stop:()=>{} };
 
-    function addBlock(color, label, w, h) {
-      const doc = { color, label: label?.trim() || '', w: Number(w)||1, h: Number(h)||1, createdAt: Date.now(), uid: window._uid || 'guest' };
+    function addBottle(flavor, label) {
+      const doc = { flavor: flavor || 'plain', label: label?.trim() || '', createdAt: Date.now(), uid: window._uid || 'guest' };
       store.add(doc);
     }
 
     addBtn.addEventListener('click', () => {
-      addBlock(colorPicker.value, labelInput.value, wInput.value, hInput.value);
+      addBottle(flavorSelect.value, labelInput.value);
       labelInput.value = '';
     });
 
-    // Subscribe to changes immediately (local mode)
     let unsubscribe = store.onChange(render);
 
-    // Firebase connect immediately with embedded config
     (async () => {
       try {
         status.textContent = 'loading Firebase…';
@@ -175,10 +178,10 @@
         status.textContent = 'signing in…';
         await signInAnonymously(auth);
         onAuthStateChanged(auth, u => {
-          if (u) { window._uid = u.uid; status.textContent = `online as ${u.uid.slice(0,6)}…`; }
+          if (u) { window._uid = u.uid; status.textContent = `online as ${u.uid.slice(0,6)}… (${firebaseConfig.projectId})`; }
         });
 
-        const col = collection(db, 'blocks');
+        const col = collection(db, `rooms/${room}/bottles`);
 
         if (unsubscribe) unsubscribe();
         if (store.stop) store.stop();
@@ -186,29 +189,22 @@
         store = {
           type: 'firestore',
           add: async (docObj) => {
-            await addDoc(col, {
-              color: docObj.color,
-              label: docObj.label,
-              w: docObj.w,
-              h: docObj.h,
-              uid: docObj.uid,
-              createdAt: serverTimestamp()
-            });
+            await addDoc(col, { flavor: docObj.flavor, label: docObj.label, uid: docObj.uid, createdAt: serverTimestamp() });
           },
           removeAll: async () => {
-            if (!confirm('Delete ALL blocks from the shared board?')) return;
+            if (!confirm('Delete ALL bottles from this room?')) return;
             const snap = await getDocs(col);
-            await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'blocks', d.id))));
+            await Promise.all(snap.docs.map(d => deleteDoc(doc(db, `rooms/${room}/bottles`, d.id))));
           },
-          onChange: (fn) => onSnapshot(query(col, orderBy('createdAt', 'asc')), (snap) => {
-            const arr = snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toMillis?.() || Date.now() }));
+          onChange: (fn) => onSnapshot(query(col, orderBy('createdAt','asc')), (snap) => {
+            const arr = snap.docs.map(d => ({ id:d.id, ...d.data(), createdAt: d.data().createdAt?.toMillis?.() || Date.now() }));
             fn(arr);
           }),
           stop: () => {}
         };
 
         unsubscribe = store.onChange(render);
-        status.textContent = 'connected (shared)';
+        status.textContent = `connected to ${firebaseConfig.projectId} (room: ${room})`;
       } catch (e) {
         console.error(e);
         alert('Failed to connect to Firebase: ' + (e.message || e));
@@ -216,7 +212,7 @@
       }
     })();
 
-    nukeBtn?.addEventListener('click', () => store.removeAll());
+    document.getElementById('nukeBtn').addEventListener('click', () => store.removeAll());
   </script>
 </body>
 </html>

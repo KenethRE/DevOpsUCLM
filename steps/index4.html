@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Realtime Sparkling Water Bottles</title>
+  <style>
+    :root { --bg: #0f1222; --fg: #e8ecf1; --muted: #9aa4b2; --card: #171a2e; --accent: #6ea8fe; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'; background: linear-gradient(180deg, #0d1020, #11162b 40%, #0a0d1a); color: var(--fg); }
+    header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(8px); background: rgba(15,18,34,0.7); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .title { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .title .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+    .toolbar { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; margin-top: 10px; }
+    .card { background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px; }
+    input[type="text"], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0f1426; color: var(--fg); }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #141a33; color: var(--fg); cursor: pointer; transition: 120ms transform ease; }
+    button.primary { background: var(--accent); color: #0b1020; border-color: transparent; font-weight: 700; }
+    button:hover { transform: translateY(-1px); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
+
+    /* BOTTLE SHAPE */
+    .bottle {
+      position: relative;
+      width: 86px;
+      height: 190px;
+      margin: 22px auto 0 auto;
+      border-radius: 22px 22px 12px 12px; /* rounded shoulders */
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.22);
+      backdrop-filter: blur(0.5px);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.06), 0 6px 18px rgba(0,0,0,0.35);
+      isolation: isolate;
+    }
+    .bottle::after { /* glossy vertical highlight */
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.0) 20%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.0) 60%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+    .neck { /* narrow neck */
+      position: absolute;
+      top: -26px;
+      width: 28px;
+      height: 26px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(0,0,0,0.2);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+    }
+    .cap {
+      position: absolute;
+      top: -40px;
+      width: 46px;
+      height: 18px;
+      background: #e8ecf1;
+      border-radius: 6px 6px 0 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .label {
+      position: absolute;
+      bottom: 10px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      max-width: 70%;
+      z-index: 2;
+    }
+
+    /* SPARKLES / BUBBLES */
+    .bubbles { position: absolute; inset: 18% 8% 12% 8%; overflow: hidden; z-index: 1; }
+    .bubble { position: absolute; bottom: -10px; border-radius: 50%; background: rgba(255,255,255,0.85); opacity: 0.7; filter: blur(0.2px); animation: rise linear infinite; }
+    @keyframes rise {
+      0%   { transform: translateY(0) scale(0.6); opacity: 0.2; }
+      80%  { opacity: 0.95; }
+      100% { transform: translateY(-120%) scale(1); opacity: 0; }
+    }
+
+    .muted { color: var(--muted); font-size: 13px; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
+    .footer { text-align: center; color: var(--muted); padding: 18px 0 28px; }
+    .danger { background: #ff6b6b; color: #111; border-color: transparent; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="title">
+        <div class="dot"></div>
+        <div>Realtime Sparkling Water Bottles</div>
+        <div class="muted" id="status">connecting…</div>
+      </div>
+
+      <div class="toolbar">
+        <div class="card row">
+          <span class="pill">Flavor</span>
+          <select id="flavorSelect">
+            <option value="lemon">🍋 Lemon</option>
+            <option value="mint">🌿 Mint</option>
+            <option value="berry">🫐 Berry</option>
+            <option value="orange">🍊 Orange</option>
+            <option value="plain">💧 Plain</option>
+          </select>
+          <input type="text" id="labelInput" placeholder="Custom label (optional)" />
+        </div>
+        <div class="row">
+          <button class="primary" id="addBtn">Add bottle</button>
+          <button id="nukeBtn" class="danger">Delete all</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top:14px">
+    <div id="board" class="grid"></div>
+    <div class="footer">Built for collaborative fun ✨ • <span class="muted">Tip: click a bottle to duplicate it.</span></div>
+  </main>
+
+  <script type="module">
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const room = new URLSearchParams(location.search).get('room') || 'global';
+
+    const flavorColors = {
+      lemon: 'linear-gradient(to top, #f9e65c, #fff9c4)',
+      mint: 'linear-gradient(to top, #88f7c1, #d9fff0)',
+      berry: 'linear-gradient(to top, #d77bff, #f3d9ff)',
+      orange: 'linear-gradient(to top, #ffa94d, #ffe3ba)',
+      plain: 'linear-gradient(to top, #58c4ff, #b8f0ff)'
+    };
+
+    const LocalStore = (() => {
+      const KEY = `realtime-bottles-${room}`;
+      const listeners = new Set();
+      const getAll = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+      const setAll = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
+      const add = (doc) => { const all = getAll(); all.push(doc); setAll(all); emit(); };
+      const removeAll = () => { setAll([]); emit(); };
+      const onChange = (fn) => { listeners.add(fn); fn(getAll()); return () => listeners.delete(fn); };
+      const emit = () => listeners.forEach(fn => fn(getAll()));
+      window.addEventListener('storage', (e) => { if (e.key === KEY) emit(); });
+      return { add, removeAll, onChange };
+    })();
+
+    const board = document.getElementById('board');
+    const addBtn = document.getElementById('addBtn');
+    const labelInput = document.getElementById('labelInput');
+    const flavorSelect = document.getElementById('flavorSelect');
+    const status = document.getElementById('status');
+
+    const render = (docs) => {
+      board.innerHTML = '';
+      docs
+        .sort((a,b) => (a.createdAt||0) - (b.createdAt||0))
+        .forEach(doc => {
+          const wrapper = document.createElement('div');
+          wrapper.style.display = 'flex';
+          wrapper.style.justifyContent = 'center';
+
+          const d = document.createElement('div');
+          d.className = 'bottle';
+          d.style.background = flavorColors[doc.flavor] || flavorColors.plain;
+          d.innerHTML = `<div class="cap"></div><div class="neck"></div><div class="label">${doc.label ? escapeHtml(doc.label) : doc.flavor}</div>`;
+
+          // Sparkling bubbles
+          const bubbles = document.createElement('div');
+          bubbles.className = 'bubbles';
+          const bubblesCount = 10;
+          for (let i=0; i<bubblesCount; i++) {
+            const b = document.createElement('span');
+            b.className = 'bubble';
+            const size = (Math.random()*6 + 3).toFixed(1); // 3–9 px
+            const left = (Math.random()*80 + 10).toFixed(1); // 10%–90%
+            const dur = (Math.random()*3 + 3).toFixed(2); // 3–6s
+            const delay = (Math.random()*3).toFixed(2);
+            b.style.width = size+'px';
+            b.style.height = size+'px';
+            b.style.left = left+'%';
+            b.style.animationDuration = dur+'s';
+            b.style.animationDelay = delay+'s';
+            bubbles.appendChild(b);
+          }
+          d.appendChild(bubbles);
+
+          d.addEventListener('click', () => addBottle(doc.flavor, doc.label));
+          wrapper.appendChild(d);
+          board.appendChild(wrapper);
+        });
+    };
+
+    const escapeHtml = (s='') => s.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+
+    let store = { add: LocalStore.add, removeAll: LocalStore.removeAll, onChange: LocalStore.onChange, type:'local', stop:()=>{} };
+
+    function addBottle(flavor, label) {
+      const doc = { flavor: flavor || 'plain', label: label?.trim() || '', createdAt: Date.now(), uid: window._uid || 'guest' };
+      store.add(doc);
+    }
+
+    addBtn.addEventListener('click', () => {
+      addBottle(flavorSelect.value, labelInput.value);
+      labelInput.value = '';
+    });
+
+    let unsubscribe = store.onChange(render);
+
+    (async () => {
+      try {
+        status.textContent = 'loading Firebase…';
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js');
+        const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js');
+        const { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js');
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        status.textContent = 'signing in…';
+        await signInAnonymously(auth);
+        onAuthStateChanged(auth, u => {
+          if (u) { window._uid = u.uid; status.textContent = `online as ${u.uid.slice(0,6)}… (${firebaseConfig.projectId})`; }
+        });
+
+        const col = collection(db, `rooms/${room}/bottles`);
+
+        if (unsubscribe) unsubscribe();
+        if (store.stop) store.stop();
+
+        store = {
+          type: 'firestore',
+          add: async (docObj) => {
+            await addDoc(col, { flavor: docObj.flavor, label: docObj.label, uid: docObj.uid, createdAt: serverTimestamp() });
+          },
+          removeAll: async () => {
+            if (!confirm('Delete ALL bottles from this room?')) return;
+            const snap = await getDocs(col);
+            await Promise.all(snap.docs.map(d => deleteDoc(doc(db, `rooms/${room}/bottles`, d.id))));
+          },
+          onChange: (fn) => onSnapshot(query(col, orderBy('createdAt','asc')), (snap) => {
+            const arr = snap.docs.map(d => ({ id:d.id, ...d.data(), createdAt: d.data().createdAt?.toMillis?.() || Date.now() }));
+            fn(arr);
+          }),
+          stop: () => {}
+        };
+
+        unsubscribe = store.onChange(render);
+        status.textContent = `connected to ${firebaseConfig.projectId} (room: ${room})`;
+      } catch (e) {
+        console.error(e);
+        alert('Failed to connect to Firebase: ' + (e.message || e));
+        status.textContent = 'offline (local)';
+      }
+    })();
+
+    document.getElementById('nukeBtn').addEventListener('click', () => store.removeAll());
+  </script>
+</body>
+</html>

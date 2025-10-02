@@ -14,14 +14,35 @@
     .title .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
     .toolbar { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; margin-top: 10px; }
     .card { background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px; }
-    input[type="text"], input[type="number"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0f1426; color: var(--fg); }
+    input[type="text"], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: #0f1426; color: var(--fg); }
     button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: #141a33; color: var(--fg); cursor: pointer; transition: 120ms transform ease; }
     button.primary { background: var(--accent); color: #0b1020; border-color: transparent; font-weight: 700; }
     button:hover { transform: translateY(-1px); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
-    .bottle { position: relative; border-radius: 14px; min-height: 160px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(to top, #58c4ff, #b8f0ff); }
-    .bottle::before { content:""; position:absolute; top:0; left:0; right:0; height:25%; background:#e8ecf1; border-bottom-left-radius:50% 20%; border-bottom-right-radius:50% 20%; }
-    .bottle .label { position:absolute; bottom:8px; background:rgba(0,0,0,0.5); color:#fff; padding:4px 8px; border-radius:6px; font-size:13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 18px; }
+
+    /* SVG bottle sizing */
+    .bottle-wrap { display:flex; justify-content:center; }
+    .bottle-svg { width: 86px; height: 220px; overflow: visible; display:block; }
+
+    /* Bubbles animation covering the whole bottle */
+    .bubble {
+      fill: #ffffff;
+      opacity: 0.95;
+      stroke: rgba(0,0,0,0.25);
+      stroke-width: 0.6;
+      filter: drop-shadow(0 0 2px rgba(255,255,255,0.8));
+      animation-name: rise;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(240px) scale(.6); opacity:.0; }
+      8%   { opacity:.95; }
+      100% { transform: translateY(-280px) scale(1); opacity:0; }
+    }
+
     .muted { color: var(--muted); font-size: 13px; }
     .row { display: flex; gap: 10px; align-items: center; }
     .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
@@ -40,8 +61,15 @@
 
       <div class="toolbar">
         <div class="card row">
-          <span class="pill">Label</span>
-          <input type="text" id="labelInput" placeholder="Optional label (e.g., Lemon, Mint)" />
+          <span class="pill">Flavor</span>
+          <select id="flavorSelect">
+            <option value="lemon">🍋 Lemon</option>
+            <option value="mint">🌿 Mint</option>
+            <option value="berry">🫐 Berry</option>
+            <option value="orange">🍊 Orange</option>
+            <option value="plain">💧 Plain</option>
+          </select>
+          <input type="text" id="labelInput" placeholder="Custom label (optional)" />
         </div>
         <div class="row">
           <button class="primary" id="addBtn">Add bottle</button>
@@ -51,7 +79,6 @@
     </div>
   </header>
 
-  
   <main class="container" style="padding-top:14px">
     <div id="board" class="grid"></div>
     <div class="footer">Built for collaborative fun ✨ • <span class="muted">Tip: click a bottle to duplicate it.</span></div>
@@ -59,6 +86,7 @@
 
   <script type="module">
     const firebaseConfig = {
+      // REPLACE WITH YOUR FIREBASE CONFIG ---
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
       projectId: "YOUR_PROJECT_ID",
@@ -68,6 +96,14 @@
     };
 
     const room = new URLSearchParams(location.search).get('room') || 'global';
+
+    const flavorStops = {
+      lemon: ['#f9e65c','#fff9c4'],
+      mint: ['#88f7c1','#d9fff0'],
+      berry: ['#d77bff','#f3d9ff'],
+      orange: ['#ffa94d','#ffe3ba'],
+      plain: ['#58c4ff','#b8f0ff']
+    };
 
     const LocalStore = (() => {
       const KEY = `realtime-bottles-${room}`;
@@ -85,31 +121,85 @@
     const board = document.getElementById('board');
     const addBtn = document.getElementById('addBtn');
     const labelInput = document.getElementById('labelInput');
+    const flavorSelect = document.getElementById('flavorSelect');
     const status = document.getElementById('status');
 
     const render = (docs) => {
       board.innerHTML = '';
-      docs.sort((a,b) => (a.createdAt||0) - (b.createdAt||0))
+      docs
+        .sort((a,b) => (a.createdAt||0) - (b.createdAt||0))
         .forEach(doc => {
-          const d = document.createElement('div');
-          d.className = 'bottle';
-          d.innerHTML = `<div class="label">${doc.label ? escapeHtml(doc.label) : 'Sparkling'}</div>`;
-          d.addEventListener('click', () => addBottle(doc.label));
-          board.appendChild(d);
+          const wrap = document.createElement('div');
+          wrap.className = 'bottle-wrap';
+          const clipId = `clip-${Math.random().toString(36).slice(2)}`;
+          const gradId = `grad-${Math.random().toString(36).slice(2)}`;
+
+          const [c1,c2] = flavorStops[doc.flavor] || flavorStops.plain;
+
+          wrap.innerHTML = `
+          <svg class="bottle-svg" viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="bottle ${doc.flavor}">
+            <defs>
+              <linearGradient id="${gradId}" x1="0" x2="0" y1="1" y2="0">
+                <stop offset="0%" stop-color="${c1}"/>
+                <stop offset="100%" stop-color="${c2}"/>
+              </linearGradient>
+              <clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">
+                <!-- Bottle silhouette: cap+neck+shoulders+body -->
+                <path d="M40 6 h20 v22 h6 c14 0 24 10 24 24 v108 c0 18 -14 32 -32 32 H32 c-18 0 -32 -14 -32 -32 V52 c0 -14 10 -24 24 -24 h6 V6 z" />
+              </clipPath>
+            </defs>
+
+            <!-- Body fill inside silhouette -->
+            <path d="M40 6 h20 v22 h6 c14 0 24 10 24 24 v108 c0 18 -14 32 -32 32 H32 c-18 0 -32 -14 -32 -32 V52 c0 -14 10 -24 24 -24 h6 V6 z" fill="url(#${gradId})" stroke="rgba(255,255,255,0.25)" stroke-width="2" />
+
+            <!-- Cap and neck -->
+            <rect x="36" y="-6" width="28" height="10" rx="3" fill="#e8ecf1" stroke="rgba(0,0,0,0.2)"/>
+            <rect x="40" y="6" width="20" height="22" rx="3" fill="rgba(255,255,255,0.85)" stroke="rgba(0,0,0,0.2)"/>
+
+            <!-- Gloss highlight -->
+            <path d="M58 40 c0 0 8 8 8 24 v92 c0 18 -8 26 -8 26" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="6" stroke-linecap="round" />
+
+            <!-- Label -->
+            <foreignObject x="18" y="160" width="64" height="28" clip-path="url(#${clipId})">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="background:rgba(0,0,0,0.55);color:#fff;border-radius:6px;padding:3px 6px;font:13px/1.2 system-ui;text-align:center;">${doc.label ? escapeHtml(doc.label) : doc.flavor}</div>
+            </foreignObject>
+
+            <!-- Bubbles clipped to bottle silhouette -->
+            <g clip-path="url(#${clipId})">
+              ${makeBubbles()}
+            </g>
+          </svg>`;
+
+          wrap.addEventListener('click', () => addBottle(doc.flavor, doc.label));
+          board.appendChild(wrap);
         });
     };
+
+    function makeBubbles(){
+      let html = '';
+      const count = 14;
+      for (let i=0; i<count; i++) {
+        const r = (Math.random()*3 + 1.5).toFixed(2);
+        const cx = (Math.random()*70 + 15).toFixed(2);
+        const startY = 210 + Math.random()*40;
+        const dur = (Math.random()*3 + 3).toFixed(2);
+        const delay = (Math.random()*3).toFixed(2);
+        html += `<circle class="bubble" cx="${cx}" cy="${startY}" r="${r}" style="animation-duration:${dur}s;animation-delay:${delay}s"></circle>`;
+      }
+      return html;
+    }
 
     const escapeHtml = (s='') => s.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 
     let store = { add: LocalStore.add, removeAll: LocalStore.removeAll, onChange: LocalStore.onChange, type:'local', stop:()=>{} };
 
-    function addBottle(label) {
-      const doc = { label: label?.trim() || '', createdAt: Date.now(), uid: window._uid || 'guest' };
+    function addBottle(flavor, label) {
+      const doc = { flavor: flavor || 'plain', label: label?.trim() || '', createdAt: Date.now(), uid: window._uid || 'guest' };
       store.add(doc);
     }
 
     addBtn.addEventListener('click', () => {
-      addBottle(labelInput.value);
+      addBottle(flavorSelect.value, labelInput.value);
       labelInput.value = '';
     });
 
@@ -140,7 +230,7 @@
         store = {
           type: 'firestore',
           add: async (docObj) => {
-            await addDoc(col, { label: docObj.label, uid: docObj.uid, createdAt: serverTimestamp() });
+            await addDoc(col, { flavor: docObj.flavor, label: docObj.label, uid: docObj.uid, createdAt: serverTimestamp() });
           },
           removeAll: async () => {
             if (!confirm('Delete ALL bottles from this room?')) return;
